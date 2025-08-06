@@ -186,6 +186,7 @@ tmp/
 secrets/
 .secrets
 .streamlit/secrets.toml
+config/settings.py
 
 # Database files
 *.db

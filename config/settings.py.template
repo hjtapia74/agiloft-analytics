@@ -18,12 +18,12 @@ class AppConfig:
     # Logo settings
     LOGO_URL_LARGE: str = "https://higherlogicdownload.s3.amazonaws.com/AGILOFT/46412d73-e4f2-4abc-83be-9887a0cf006a/UploadedImages/Agiloft_Signature_Rev_Color_RGB.png"
     
-    # Database settings
-    DB_HOST: str = "svc-dae6f783-22b7-40ef-9d36-3bcb46e7780a-dml.aws-virginia-8.svc.singlestore.com"
+    # Database settings - REPLACE WITH YOUR ACTUAL DATABASE CREDENTIALS
+    DB_HOST: str = "your-database-host.com"
     DB_PORT: int = 3306
-    DB_NAME: str = "order_mgt"
-    DB_USER: str = "admin"
-    DB_PASSWORD: str = "syq,Q_4$pn0F4Qv8=1L4xZlAd~"
+    DB_NAME: str = "your_database_name"
+    DB_USER: str = "your_username"
+    DB_PASSWORD: str = "your_password"
     
     # Chart settings
     CHART_HEIGHT: int = 320
