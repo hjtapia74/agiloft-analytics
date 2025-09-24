@@ -18,6 +18,201 @@ from utils.exceptions import DataProcessingError
 
 logger = logging.getLogger(__name__)
 
+def enhanced_customer_selector_country(available_customers, key="country_customer_selector", default_count=20):
+    """Enhanced customer selector for country analysis with search and quick actions"""
+
+    if not available_customers:
+        st.warning("No customers found in database")
+        return []
+
+    # Initialize session state
+    search_key = f"{key}_search"
+    selection_key = f"{key}_selection"
+
+    if selection_key not in st.session_state:
+        # Smart default: Use first N customers alphabetically
+        default_customers = available_customers[:min(default_count, len(available_customers))]
+        st.session_state[selection_key] = default_customers
+        st.info(f"Showing first {len(default_customers)} customers alphabetically")
+
+    if search_key not in st.session_state:
+        st.session_state[search_key] = ""
+
+    # Quick action buttons
+    st.markdown("**Quick Selection Actions:**")
+
+    # Row 1: Top 10 customers
+    if st.button(
+        "First 10 Customers",
+        key=f"{key}_top10",
+        help="Select the first 10 customers alphabetically",
+        use_container_width=True
+    ):
+        st.session_state[selection_key] = available_customers[:10]
+        st.success(f"Selected first 10 customers")
+
+    # Row 2: Top N customers
+    if st.button(
+        f"First {default_count} Customers",
+        key=f"{key}_top_default",
+        help=f"Select the first {default_count} customers alphabetically",
+        use_container_width=True
+    ):
+        st.session_state[selection_key] = available_customers[:default_count]
+        st.success(f"Selected first {default_count} customers")
+
+    # Row 3: Select All
+    if st.button(
+        "All Customers",
+        key=f"{key}_all_customers",
+        help="Select all available customers",
+        use_container_width=True
+    ):
+        st.session_state[selection_key] = available_customers.copy()
+        st.success(f"Selected all {len(available_customers)} customers")
+
+    # Row 4: Clear All
+    if st.button(
+        "Clear Selections",
+        key=f"{key}_clear",
+        help="Clear all current selections",
+        use_container_width=True
+    ):
+        st.session_state[selection_key] = []
+        st.info("Cleared all selections")
+
+    st.markdown("---")
+
+    # Search box
+    search_term = st.text_input(
+        "Search Customers",
+        value=st.session_state[search_key],
+        placeholder="Type to search by customer name...",
+        key=f"{search_key}_input",
+        help="Filter customers by name. Search is case-insensitive."
+    )
+
+    # Update search state
+    if search_term != st.session_state[search_key]:
+        st.session_state[search_key] = search_term
+
+    # Filter customers based on search
+    if search_term:
+        filtered_customers = []
+        search_lower = search_term.lower()
+
+        for customer in available_customers:
+            if search_lower in customer.lower():
+                filtered_customers.append(customer)
+
+        # Sort by relevance
+        filtered_customers.sort(key=lambda x: (
+            0 if x.lower() == search_term.lower() else
+            1 if x.lower().startswith(search_term.lower()) else
+            2
+        ))
+    else:
+        filtered_customers = available_customers
+
+    # Quick actions for filtered results
+    if search_term and filtered_customers:
+        st.markdown("**Actions for Search Results:**")
+
+        # Select all search results
+        if st.button(
+            f"Select All {len(filtered_customers)} Search Results",
+            key=f"{key}_all_filtered",
+            help="Select all customers from current search results",
+            use_container_width=True
+        ):
+            st.session_state[selection_key] = filtered_customers.copy()
+            st.success(f"Selected {len(filtered_customers)} search results")
+
+        # Add search results to current selection
+        if st.button(
+            f"Add Search Results to Selection",
+            key=f"{key}_add_filtered",
+            help="Add search results to current selection",
+            use_container_width=True
+        ):
+            current_selection = st.session_state.get(selection_key, [])
+            new_additions = 0
+            for customer in filtered_customers:
+                if customer not in current_selection:
+                    current_selection.append(customer)
+                    new_additions += 1
+            st.session_state[selection_key] = current_selection
+            if new_additions > 0:
+                st.success(f"Added {new_additions} new customers to selection")
+            else:
+                st.info("All search results were already selected")
+
+    # Show search results info
+    if search_term:
+        st.info(f"Found {len(filtered_customers)} customers matching '{search_term}'")
+
+    # Selection summary and multiselect
+    current_selection = st.session_state.get(selection_key, [])
+
+    if current_selection:
+        # Show compact summary
+        if len(current_selection) <= 3:
+            summary_text = f"**Currently selected:** {', '.join(current_selection)}"
+        else:
+            summary_text = f"**{len(current_selection)} customers selected**"
+
+        st.markdown(summary_text)
+
+        # Checkbox to show/hide full selection for editing
+        show_full_selection = st.checkbox(
+            "Show full selection for editing",
+            value=False,
+            key=f"{key}_show_selection",
+            help="Check this box to view and edit the complete customer selection"
+        )
+
+        if show_full_selection:
+            # Use the filtered list for options, but maintain current selection
+            display_options = filtered_customers
+
+            # Ensure current selection is included in options
+            for selected in current_selection:
+                if selected not in display_options and selected in available_customers:
+                    display_options.append(selected)
+
+            selected_customers = st.multiselect(
+                f"Edit Selection ({len(current_selection)} currently selected)",
+                options=display_options,
+                default=current_selection,
+                key=f"{key}_multiselect",
+                help="Modify your current customer selection"
+            )
+        else:
+            selected_customers = current_selection
+    else:
+        # No selection yet - show normal multiselect
+        st.warning("No customers selected - please choose customers above or use the selection below")
+
+        selected_customers = st.multiselect(
+            "Select Customers",
+            options=filtered_customers,
+            default=[],
+            key=f"{key}_multiselect",
+            help="Choose which customers to include in your analysis"
+        )
+
+    # Update session state
+    st.session_state[selection_key] = selected_customers
+
+    # Final selection summary
+    if selected_customers:
+        if len(selected_customers) == len(available_customers):
+            st.info(f"All {len(available_customers)} customers selected")
+        else:
+            st.info(f"{len(selected_customers)} of {len(available_customers)} customers selected")
+
+    return selected_customers
+
 class CountryPage(FilteredPage):
     """Page for displaying contract data by country with enhanced 2x4 grid layout"""
     
@@ -68,36 +263,26 @@ class CountryPage(FilteredPage):
     def render_sidebar_filters(self) -> Dict[str, Any]:
         """Render sidebar filters for country page with organized expanders"""
         try:
-            # Geographic Filters
-            with st.expander("Geographic Filters", expanded=False):
-                st.subheader("Data Selection")
-                
-                # Customer range selection - IN ROWS FOR BETTER FIT
-                customer_start = st.text_input(
-                    "Start Customer ID",
-                    value="Customer#000000001",
-                    help="Starting customer ID for the range"
-                )
-                
-                customer_end = st.text_input(
-                    "End Customer ID",
-                    value="Customer#000000070",
-                    help="Ending customer ID for the range"
-                )
-                
-                # Show range summary
-                try:
-                    start_num = int(customer_start.split('#')[1])
-                    end_num = int(customer_end.split('#')[1])
-                    range_size = end_num - start_num + 1
-                    st.info(f"Selected range includes {range_size:,} customer IDs")
-                except:
-                    st.warning("Invalid customer ID format. Use format: Customer#000000001")
-                
-                # Year range selection
+            # Customer Selection Filter (NEW APPROACH)
+            with st.expander("Customer Selection", expanded=False):
+                # Get available customers from database
+                available_customers = self.db_manager.get_available_customers()
+
+                if available_customers:
+                    selected_customers = enhanced_customer_selector_country(
+                        available_customers=available_customers,
+                        key="country_customers_enhanced",
+                        default_count=20
+                    )
+                else:
+                    st.warning("No customers found in database")
+                    selected_customers = []
+
+            # Time Period Filter
+            with st.expander("Time Period", expanded=False):
                 current_year = datetime.now().year
                 start_year = current_year - 10
-                
+
                 year_range = st.slider(
                     "Contract Year Range",
                     min_value=start_year,
@@ -105,13 +290,12 @@ class CountryPage(FilteredPage):
                     value=(start_year, current_year),
                     help="Select the range of years to include"
                 )
-            
-            
+
             return {
-                "customer_range": (customer_start, customer_end),
+                "selected_customers": selected_customers,
                 "year_range": year_range
             }
-            
+
         except Exception as e:
             logger.error(f"Error rendering country sidebar filters: {str(e)}")
             self.render_error("Error loading filter options")
@@ -193,25 +377,28 @@ class CountryPage(FilteredPage):
         """Validate filter inputs"""
         if not filters:
             return False
-        
-        customer_range = filters.get("customer_range")
-        if not customer_range or not customer_range[0] or not customer_range[1]:
-            self.render_warning("Please provide valid customer range")
+
+        selected_customers = filters.get("selected_customers")
+        if not selected_customers:
+            self.render_warning("Please select at least one customer")
+            st.info("**Tip**: Use the 'First 20 Customers' quick action button to get started")
             return False
-        
+
         year_range = filters.get("year_range")
         if year_range and year_range[0] > year_range[1]:
             self.render_warning("Invalid year range selected")
             return False
-        
+
         return True
     
     def process_data(self, filters: Dict[str, Any]) -> Dict[str, Any]:
         """Process country contract data based on filters"""
         try:
-            # Get raw data from database
+            logger.info(f"Processing country data with {len(filters.get('selected_customers', []))} customers")
+
+            # Get raw data from database - NEW APPROACH
             raw_data = self.db_manager.get_country_contract_data(
-                customer_range=filters["customer_range"],
+                selected_customers=filters["selected_customers"],
                 year_range=filters["year_range"]
             )
             

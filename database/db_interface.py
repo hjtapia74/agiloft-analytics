@@ -68,34 +68,34 @@ class ContractDataQueries:
         ORDER BY co_contractmanager, co_status
     """
     
-    # Customer analysis query - properly joining with customer table
-    # Note: co_custkey in contract table should be TEXT but contains integer values
+    # Customer analysis query - UUID-compatible join
+    # Note: Both c_custkey and co_custkey are now UUID strings (varchar(36))
     CUSTOMER_CONTRACT_QUERY = """
-        SELECT 
+        SELECT
             c.c_name,
             YEAR(co.co_datesigned) AS contract_year,
             SUM(co.co_amount) AS total_contract_value
         FROM customer c
-        JOIN contract co ON c.c_custkey = CAST(co.co_custkey AS SIGNED)
-        WHERE co.co_datesigned IS NOT NULL 
+        JOIN contract co ON c.c_custkey = co.co_custkey
+        WHERE co.co_datesigned IS NOT NULL
         AND co.co_datesigned >= DATE_SUB(CURDATE(), INTERVAL %s YEAR)
-        AND c.c_name BETWEEN %s AND %s
+        AND c.c_name IN ({customer_placeholders})
         GROUP BY c.c_name, contract_year
         ORDER BY c.c_name, contract_year DESC, total_contract_value DESC
     """
     
-    # Country analysis - properly joining with customer and nation tables
+    # Country analysis - UUID-compatible join with customer and nation tables
     COUNTRY_CONTRACT_QUERY = """
-        SELECT 
+        SELECT
             n.n_name AS country_name,
             YEAR(co.co_datesigned) AS contract_year,
             SUM(co.co_amount) AS total_contract_value
         FROM contract co
-        JOIN customer c ON c.c_custkey = CAST(co.co_custkey AS SIGNED)
+        JOIN customer c ON c.c_custkey = co.co_custkey
         JOIN nation n ON c.c_nationkey = n.n_nationkey
-        WHERE co.co_datesigned IS NOT NULL 
+        WHERE co.co_datesigned IS NOT NULL
         AND co.co_datesigned >= DATE_SUB(CURDATE(), INTERVAL %s YEAR)
-        AND c.c_name BETWEEN %s AND %s
+        AND c.c_name IN ({customer_placeholders})
         GROUP BY country_name, contract_year
         ORDER BY country_name, contract_year DESC
     """
