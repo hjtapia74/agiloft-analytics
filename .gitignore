@@ -195,3 +195,8 @@ config/settings.py
 # Cache files
 .cache/
 cache/
+
+# Backup files
+*.bak
+*copy.py
+db_manager copy.py
